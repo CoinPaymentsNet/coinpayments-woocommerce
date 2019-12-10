@@ -278,13 +278,19 @@ $this->icon         = apply_filters( 'woocommerce_coinpayments_icon', plugins_ur
    *	Requires Var injection and autoload
    */
  function generate_coinpayments_form($order_id) {
-            
+	
+	$order = wc_get_order($order_id);
+
+        $amount = $order->get_total()*100; //NOTE FORMAT ISSUE REQUIRING *100 CHECK DOCUMENTATION & CURRENCY LOOKUP...
+
 	return '<script src="https://orion-api-testnet.starhermit.com/static/js/checkout.js"></script>
 
 
 <div id="cps-button-container-1"></div>
 
 <script type="text/javascript">
+
+	var test = "'.$amount.'";
         CoinPayments.Button({
             createInvoice: function (data, actions) {
                 return actions.invoice.create({
@@ -292,7 +298,7 @@ $this->icon         = apply_filters( 'woocommerce_coinpayments_icon', plugins_ur
                     amount:
                     {
                         currencyId: "5057",    // USD
-                        value: "123"         // $ 1.23 USD
+                        value: test         // $ 1.23 USD
                     }
                 });
             }
