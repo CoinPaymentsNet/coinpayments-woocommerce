@@ -191,7 +191,7 @@ function coinpayments_gateway_load() {
 
 	//NOTE RECTANGULAR CONTAINER ON BUTTON DIV NEEDED FOR CSS CONFLICT
 
-      return '<script src="https://orion-api-testnet.starhermit.com/static/js/checkout.js"></script>
+      return '<script src="https://alpha-api.coinpayments.net/static/js/checkout.js"></script>
       <div style="width:500px;height:100px;border:3px solid #000;"><div id="cps-button-container-1"></div></div>
       <script type="text/javascript">
       var amount = "'.$amount.'";
