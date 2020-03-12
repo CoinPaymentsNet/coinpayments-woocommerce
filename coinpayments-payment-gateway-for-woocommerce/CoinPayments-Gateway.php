@@ -146,15 +146,15 @@ function coinpayments_gateway_load() {
             'default'     => __( 'Pay with Bitcoin, Litecoin, or other altcoins via CoinPayments.net', 'woocommerce' )
          ),
          'merchant_id' => array(
-            'title'       => __( 'Merchant ID', 'woocommerce' ),
+            'title'       => __( 'Client ID', 'woocommerce' ),
             'type'        => 'text',
-            'description' => __( 'Please enter your CoinPayments.net Merchant ID.', 'woocommerce' ),
+            'description' => __( 'Please enter your CoinPayments.net Client ID.', 'woocommerce' ),
             'default'     => ''
          ),
          'ipn_secret' => array(
-            'title'       => __( 'IPN Secret', 'woocommerce' ),
+            'title'       => __( 'Client Secret', 'woocommerce' ),
             'type'        => 'text',
-            'description' => __( 'Please enter your CoinPayments.net IPN Secret.', 'woocommerce' ),
+            'description' => __( 'Please enter your CoinPayments.net Client Secret.', 'woocommerce' ),
             'default'     => ''
          ),
          'invoice_prefix' => array(
@@ -169,12 +169,6 @@ function coinpayments_gateway_load() {
             'type'        => 'text',
             'description' => __( 'Please enter the Currency ID', 'woocommerce' ),
             'default'     => '5057'
-         ),
-         'simple_total' => array(
-            'title'   => __( 'Compatibility Mode', 'woocommerce' ),
-            'type'    => 'checkbox',
-            'label'   => __( "This may be needed for compatibility with certain addons if the order total isn't correct.", 'woocommerce' ),
-            'default' => ''
          ));
    }
 
@@ -189,10 +183,9 @@ function coinpayments_gateway_load() {
       $invoiceId   = $this->invoice_prefix . $order->get_order_number();
       $description = serialize( array( $order->get_id(), $order->get_order_key() ) );
 
-	//NOTE RECTANGULAR CONTAINER ON BUTTON DIV NEEDED FOR CSS CONFLICT
-
-      return '<script src="https://alpha-api.coinpayments.net/static/js/checkout.js"></script>
-      <div style="width:500px;height:100px;border:3px solid #000;"><div id="cps-button-container-1"></div></div>
+      return '<script src="https://orion-api-testnet.starhermit.com/static/js/checkout.js"></script>
+      <style> #cps-button-container-1 {  position: absolute; } </style>
+      <div id="cps-button-container-1"></div>
       <script type="text/javascript">
       var amount = "'.$amount.'";
       var merchant_id = "'.$merchant_id.'";
@@ -215,7 +208,6 @@ function coinpayments_gateway_load() {
       }).render("cps-button-container-1");</script>';
 
    }
-
 
    /*
     * Process the payment and return the result
@@ -248,8 +240,7 @@ function coinpayments_gateway_load() {
 
       if (isset($_SERVER['HTTP_X_COINPAYMENTS_SIGNATURE']) && !empty($_SERVER['HTTP_X_COINPAYMENTS_SIGNATURE'])) {
          if ($request !== FALSE && !empty($request)) {
-            $hmac = hash_hmac("sha512", $request, trim($this->ipn_secret));
-            $signature = base64_encode($hmac);
+            $signature = base64_encode(hash_hmac("sha512", $request), trim($this->ipn_secret), true);
             if ($signature == $_SERVER['HTTP_X_COINPAYMENTS_SIGNATURE']) {
                $auth_ok = true;
             } else {
@@ -268,6 +259,7 @@ function coinpayments_gateway_load() {
          if ($order !== FALSE) {
 
          //IPN Vetted Successfully !!!!!!!!WARNING!!!!!!!! : Missing Currency & Value verification of v1.0
+
             return true;
 
          } else {
@@ -319,6 +311,7 @@ function coinpayments_gateway_load() {
             die("IPN OK");
          }
       }
+   }
 
   /*
    * Receive IPN
@@ -366,3 +359,4 @@ function coinpayments_gateway_load() {
    }
 }
 }
+
