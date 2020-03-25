@@ -61,7 +61,6 @@ function coinpayments_gateway_load()
         public function filters()
         {
             add_filter('woocommerce_payment_gateways', [__CLASS__, 'add_gateway'], 0);
-            add_filter('query_vars', [__CLASS__, 'add_query_vars'], 0);
         }
 
         public static function add_gateway($methods)
@@ -70,6 +69,11 @@ function coinpayments_gateway_load()
                 $methods[] = 'WC_Gateway_Coinpayments';
             }
             return $methods;
+        }
+
+        public static function custom_rewrite_rule()
+        {
+            add_rewrite_rule('payment/coinpayments/([^/]*)/([^/]*)/?', 'index.php?coinpayments_page=$matches[1]&coin_param=$matches[2]', 'top');
         }
 
     }
