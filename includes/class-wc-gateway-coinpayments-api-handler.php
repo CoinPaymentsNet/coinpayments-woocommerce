@@ -109,7 +109,7 @@ class WC_Gateway_Coinpayments_API_Handler
 
         $action = sprintf(self::API_WEBHOOK_ACTION, $this->client_id);
 
-        return $this->send_request('GET', $action, $this->client_id, [], $this->client_secret);
+        return $this->send_request('GET', $action, $this->client_id, null, $this->client_secret);
     }
 
     /**
@@ -303,12 +303,19 @@ class WC_Gateway_Coinpayments_API_Handler
     protected function create_signature($method, $api_url, $client_id, $date, $client_secret, $params)
     {
 
+        if (!empty($params)) {
+            $params = json_encode($params);
+        }
+
         $signature_data = array(
+            chr(239),
+            chr(187),
+            chr(191),
             $method,
             $api_url,
             $client_id,
             $date->format('c'),
-            json_encode($params)
+            $params
         );
 
         $signature_string = implode('', $signature_data);
