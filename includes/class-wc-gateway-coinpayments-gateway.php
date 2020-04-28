@@ -38,7 +38,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         $this->form_submission_method = $this->get_option('form_submission_method') == 'yes' ? true : false;
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-        add_action('woocommerce_api_wc_gateway_coinpayments', array($this, 'check_ipn_response'));
+        add_action('woocommerce_api_wc_gateway_coinpayments', array($this, 'check_wehhook_notification'));
 
         $save_action = ($_SERVER['REQUEST_METHOD'] == 'POST' &&
             isset($_GET['page']) && $_GET['page'] == "wc-settings" &&
@@ -138,7 +138,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         return $redirect_url;
     }
 
-    function check_ipn_response()
+    function check_wehhook_notification()
     {
 
         @ob_clean();
@@ -154,10 +154,10 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $invoice_str = $request_data['invoice']['invoiceId'];
             $invoice_str = explode('|', $invoice_str);
 
-            $host_hast = array_shift($invoice_str);
+            $host_hash = array_shift($invoice_str);
             $invoice_id = array_shift($invoice_str);
 
-            if ($host_hast == md5(get_site_url())) {
+            if ($host_hash == md5(get_site_url())) {
 
                 $order = wc_get_order($invoice_id);
 
