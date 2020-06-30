@@ -72,7 +72,7 @@ function coinpayments_gateway_load() {
    public function __construct() {
       global $woocommerce;
       $this->id           = 'coinpayments';
-      $this->icon         = apply_filters( 'woocommerce_coinpayments_icon', plugins_url().'/coinpayments-payment-gateway-for-woocommerce/icon.png' );
+      $this->icon         = apply_filters( 'woocommerce_coinpayments_icon', plugins_url().'/coinpayments-payment-gateway-for-woocommerce/logo.svg' );
       $this->has_fields   = false;
       $this->method_title = __( 'CoinPayments.net', 'woocommerce' );
       $this->ipn_url      = add_query_arg( 'wc-api', 'WC_Gateway_Coinpayments', home_url( '/' ) );
