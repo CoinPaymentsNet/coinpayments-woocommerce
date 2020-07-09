@@ -126,7 +126,9 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         $display_value = $order->data['total'];
 
         $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value);
-
+        if ($this->webhooks) {
+            $invoice = array_shift($invoice['invoices']);
+        }
         $coinpayments_args = array(
             'invoice-id' => $invoice['id'],
             'success-url' => $this->get_return_url($order),
