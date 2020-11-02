@@ -55,7 +55,6 @@ function coinpayments_gateway_load()
         public function actions()
         {
             add_action('init', [__CLASS__, 'custom_rewrite_rule'], 10, 0);
-            add_action('template_redirect', [__CLASS__, 'coin_page'], 10, 0);
         }
 
         public function filters()
