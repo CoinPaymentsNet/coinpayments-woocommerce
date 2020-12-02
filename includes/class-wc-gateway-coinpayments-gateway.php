@@ -19,7 +19,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
 
         $this->id = 'coinpayments';
-        $this->icon = apply_filters('woocommerce_coinpayments_icon', plugins_url() . '/coinpayments-payment-gateway-for-woocommerce/assets/images/icons/coinpayments.png');
+        $this->icon = apply_filters('woocommerce_coinpayments_icon', plugins_url() . '/coinpayments-payment-gateway-for-woocommerce/assets/images/icons/coinpayments.svg');
         $this->has_fields = false;
         $this->method_title = __('CoinPayments.net', 'coinpayments-payment-gateway-for-woocommerce');
 
