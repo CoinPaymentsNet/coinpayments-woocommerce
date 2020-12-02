@@ -135,7 +135,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             'cancel-url' => esc_url_raw($order->get_cancel_order_url_raw()),
         );
         $coinpayments_args = http_build_query($coinpayments_args, '', '&');
-        $redirect_url = sprintf('%s/%s/?%s', WC_Gateway_Coinpayments_API_Handler::API_URL, WC_Gateway_Coinpayments_API_Handler::API_CHECKOUT_ACTION, $coinpayments_args);
+        $redirect_url = sprintf('%s/%s/?%s', WC_Gateway_Coinpayments_API_Handler::CHECKOUT_URL, WC_Gateway_Coinpayments_API_Handler::API_CHECKOUT_ACTION, $coinpayments_args);
 
         return array('result' => 'success', 'redirect' => $redirect_url);
     }
