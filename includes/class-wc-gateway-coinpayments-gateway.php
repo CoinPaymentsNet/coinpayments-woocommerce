@@ -137,7 +137,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         $coinpayments_args = http_build_query($coinpayments_args, '', '&');
         $redirect_url = sprintf('%s/%s/?%s', WC_Gateway_Coinpayments_API_Handler::API_URL, WC_Gateway_Coinpayments_API_Handler::API_CHECKOUT_ACTION, $coinpayments_args);
 
-        return $redirect_url;
+        return array('result' => 'success', 'redirect' => $redirect_url);
     }
 
     function check_wehhook_notification()
