@@ -47,8 +47,8 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
         if ($save_action && !self::$webhook_checked) {
             self::$webhook_checked = true;
-            $coinpayments = new WC_Gateway_Coinpayments_API_Handler($_POST['client_id'], $_POST['webhooks'], $_POST['client_secret']);
-            if (!empty($this->client_id) && !empty($this->webhooks) && !empty($this->client_secret)) {
+            $coinpayments = new WC_Gateway_Coinpayments_API_Handler($_POST['woocommerce_coinpayments_client_id'], $_POST['woocommerce_coinpayments_webhooks'], $_POST['woocommerce_coinpayments_client_secret']);
+            if (!empty($_POST['woocommerce_coinpayments_client_id']) && !empty($_POST['woocommerce_coinpayments_webhooks']) && !empty($_POST['woocommerce_coinpayments_client_secret'])) {
                 if (!$coinpayments->check_webhook()) {
                     $coinpayments->create_webhook();
                 }
