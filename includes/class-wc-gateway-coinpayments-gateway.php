@@ -117,13 +117,15 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
         $coinpayments_api = new WC_Gateway_Coinpayments_API_Handler($this->client_id, $this->webhooks, $this->client_secret);
 
-        $invoice_id = sprintf('%s|%s', md5(get_site_url()), $order->data['id']);
+        $order_data = $order->get_base_data();
 
-        $currency_code = $order->data['currency'];
+        $invoice_id = sprintf('%s|%s', md5(get_site_url()), $order_data['id']);
+
+        $currency_code = $order_data['currency'];
         $coin_currency = $coinpayments_api->get_coin_currency($currency_code);
 
-        $amount = intval(number_format($order->data['total'], $coin_currency['decimalPlaces'], '', ''));
-        $display_value = $order->data['total'];
+        $amount = intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', ''));
+        $display_value = $order_data['total'];
 
         $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value);
         if ($this->webhooks) {
