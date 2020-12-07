@@ -140,7 +140,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         return array('result' => 'success', 'redirect' => $redirect_url);
     }
 
-    function check_wehhook_notification()
+    public function check_wehhook_notification()
     {
 
         @ob_clean();
@@ -160,16 +160,15 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $invoice_id = array_shift($invoice_str);
 
             if ($host_hash == md5(get_site_url())) {
-
-                $order = wc_get_order($invoice_id);
-
-                if ($request_data['invoice']['status'] == 'Pending') {
-                    $order->update_status('pending', 'CoinPayments.net Payment pending');
-                } elseif ($request_data['invoice']['status'] == 'Completed') {
-                    update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
-                    $order->payment_complete();
-                } elseif ($request_data['invoice']['status'] == 'Cancelled') {
-                    $order->update_status('cancelled', 'CoinPayments.net Payment cancelled/timed out');
+                if (!empty($order = wc_get_order($invoice_id))) {
+                    if ($request_data['invoice']['status'] == 'Pending') {
+                        $order->update_status('pending', 'CoinPayments.net Payment pending');
+                    } elseif ($request_data['invoice']['status'] == 'Completed') {
+                        update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
+                        $order->payment_complete();
+                    } elseif ($request_data['invoice']['status'] == 'Cancelled') {
+                        $order->update_status('cancelled', 'CoinPayments.net Payment cancelled/timed out');
+                    }
                 }
             }
         }
