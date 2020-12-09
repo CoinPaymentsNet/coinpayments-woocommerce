@@ -28,6 +28,9 @@ class WC_Gateway_Coinpayments_API_Handler
     const API_CHECKOUT_ACTION = 'checkout';
     const FIAT_TYPE = 'fiat';
 
+    const COMPLETED_EVENT = 'Completed';
+    const CANCELLED_EVENT = 'Cancelled';
+
     /**
      * @var string
      */
@@ -70,7 +73,7 @@ class WC_Gateway_Coinpayments_API_Handler
                     return $webHook['notificationsUrl'];
                 }, $webhooks_list['items']);
             }
-            if (in_array($this->get_notification_url(), $webhooks_urls_list)) {
+            if (in_array($this->get_notification_url(self::COMPLETED_EVENT), $webhooks_urls_list)) {
                 $exists = true;
             }
         }
@@ -79,22 +82,19 @@ class WC_Gateway_Coinpayments_API_Handler
     }
 
     /**
+     * @param $event
      * @return bool|mixed
      * @throws Exception
      */
-    public function create_webhook()
+    public function create_webhook($event)
     {
 
         $action = sprintf(self::API_WEBHOOK_ACTION, $this->client_id);
 
         $params = array(
-            "notificationsUrl" => $this->get_notification_url(),
+            "notificationsUrl" => $this->get_notification_url($event),
             "notifications" => [
-                "invoiceCreated",
-                "invoicePending",
-                "invoicePaid",
-                "invoiceCompleted",
-                "invoiceCancelled",
+                sprintf("invoice%s", $event),
             ],
         );
 
@@ -148,12 +148,13 @@ class WC_Gateway_Coinpayments_API_Handler
     /**
      * @param $signature
      * @param $content
+     * @param $event
      * @return bool
      */
-    public function check_data_signature($signature, $content)
+    public function check_data_signature($signature, $content, $event)
     {
 
-        $request_url = $this->get_notification_url();
+        $request_url = $this->get_notification_url($event);
         $signature_string = sprintf('%s%s', $request_url, $content);
         $encoded_pure = $this->encode_signature_string($signature_string, $this->client_secret);
         return $signature == $encoded_pure;
@@ -210,11 +211,16 @@ class WC_Gateway_Coinpayments_API_Handler
     }
 
     /**
+     * @param $event
      * @return string
      */
-    protected function get_notification_url()
+    protected function get_notification_url($event = false)
     {
-        return add_query_arg('wc-api', 'WC_Gateway_Coinpayments', home_url('/'));
+        $url = add_query_arg('wc-api', 'WC_Gateway_Coinpayments', home_url('/'));
+        $url = add_query_arg('clientId', $this->client_id, $url);
+        $url = add_query_arg('event', $event, $url);
+
+        return $url;
     }
 
     /**

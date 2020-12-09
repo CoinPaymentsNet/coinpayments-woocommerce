@@ -50,7 +50,8 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $coinpayments = new WC_Gateway_Coinpayments_API_Handler($_POST['woocommerce_coinpayments_client_id'], $_POST['woocommerce_coinpayments_webhooks'], $_POST['woocommerce_coinpayments_client_secret']);
             if (!empty($_POST['woocommerce_coinpayments_client_id']) && !empty($_POST['woocommerce_coinpayments_webhooks']) && !empty($_POST['woocommerce_coinpayments_client_secret'])) {
                 if (!$coinpayments->check_webhook()) {
-                    $coinpayments->create_webhook();
+                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::COMPLETED_EVENT);
+                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
                 }
             }
         }
@@ -154,7 +155,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
         $request_data = json_decode($content, true);
 
-        if ($coinpayments_api->check_data_signature($signature, $content) && isset($request_data['invoice']['invoiceId'])) {
+        if ($coinpayments_api->check_data_signature($signature, $content, $request_data['invoice']['status']) && isset($request_data['invoice']['invoiceId'])) {
             $invoice_str = $request_data['invoice']['invoiceId'];
             $invoice_str = explode('|', $invoice_str);
 
@@ -163,12 +164,10 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
             if ($host_hash == md5(get_site_url())) {
                 if (!empty($order = wc_get_order($invoice_id))) {
-                    if ($request_data['invoice']['status'] == 'Pending') {
-                        $order->update_status('pending', 'CoinPayments.net Payment pending');
-                    } elseif ($request_data['invoice']['status'] == 'Completed') {
+                    if ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::COMPLETED_EVENT) {
                         update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
                         $order->payment_complete();
-                    } elseif ($request_data['invoice']['status'] == 'Cancelled') {
+                    } elseif ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
                         $order->update_status('cancelled', 'CoinPayments.net Payment cancelled/timed out');
                     }
                 }
