@@ -77,5 +77,7 @@ function coinpayments_gateway_load()
 
     }
 
-    new WC_Gateway_Coinpayments_Plugin();
+    if(class_exists('WC_Payment_Gateway')){
+        new WC_Gateway_Coinpayments_Plugin();
+    }
 }
