@@ -126,16 +126,20 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
         $invoice_id = sprintf('%s|%s', md5(get_site_url()), $order_data['id']);
 
-        $currency_code = $order_data['currency'];
-        $coin_currency = $coinpayments_api->get_coin_currency($currency_code);
+        if (empty($invoice = WC()->session->get($invoice_id))) {
+            $currency_code = $order_data['currency'];
+            $coin_currency = $coinpayments_api->get_coin_currency($currency_code);
 
-        $amount = intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', ''));
-        $display_value = $order_data['total'];
+            $amount = intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', ''));
+            $display_value = $order_data['total'];
 
-        $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value);
-        if ($this->webhooks) {
-            $invoice = array_shift($invoice['invoices']);
+            $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value);
+            if ($this->webhooks) {
+                $invoice = array_shift($invoice['invoices']);
+            }
+            WC()->session->set($invoice_id, $invoice);
         }
+        
         $coinpayments_args = array(
             'invoice-id' => $invoice['id'],
             'success-url' => $this->get_return_url($order),
