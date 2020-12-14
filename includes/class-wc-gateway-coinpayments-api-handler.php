@@ -28,7 +28,7 @@ class WC_Gateway_Coinpayments_API_Handler
     const API_CHECKOUT_ACTION = 'checkout';
     const FIAT_TYPE = 'fiat';
 
-    const COMPLETED_EVENT = 'Completed';
+    const PAID_EVENT = 'Paid';
     const CANCELLED_EVENT = 'Cancelled';
 
     /**
@@ -73,7 +73,7 @@ class WC_Gateway_Coinpayments_API_Handler
                     return $webHook['notificationsUrl'];
                 }, $webhooks_list['items']);
             }
-            if (in_array($this->get_notification_url(self::COMPLETED_EVENT), $webhooks_urls_list)) {
+            if (in_array($this->get_notification_url(self::PAID_EVENT), $webhooks_urls_list)) {
                 $exists = true;
             }
         }
