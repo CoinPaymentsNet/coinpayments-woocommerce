@@ -55,6 +55,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             if (!empty($_POST['woocommerce_coinpayments_client_id']) && !empty($_POST['woocommerce_coinpayments_webhooks']) && !empty($_POST['woocommerce_coinpayments_client_secret'])) {
                 if (!$coinpayments->check_webhook()) {
                     $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT);
+                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT);
                     $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
                 }
             }
@@ -172,7 +173,8 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
             if ($host_hash == md5(get_site_url())) {
                 if (!empty($order = wc_get_order($invoice_id))) {
-                    if ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::PAID_EVENT) {
+                    $completed_statuses = array(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT, WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT);
+                    if (in_array($request_data['invoice']['status'], $completed_statuses)) {
                         update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
                         $order->payment_complete();
                     } elseif ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
