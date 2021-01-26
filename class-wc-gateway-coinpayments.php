@@ -22,62 +22,69 @@ if (!defined('ABSPATH')) exit; // Exit if accessed directly
  * @package      WooCommerce\Gateways
  * @author       CoinPayments.net
  */
+if (function_exists('coinpayments_gateway_load')) {
+    $reflFunc = new ReflectionFunction('coinpayments_gateway_load');
+    $pluginFile = $reflFunc->getFileName();
+    $pluginFileParts = array_slice(explode('/', $pluginFile), -2);
+    $pluginPath = implode('/', $pluginFileParts);
+    deactivate_plugins(array($pluginPath), true);
+} else {
+    add_action('plugins_loaded', 'coinpayments_gateway_load', 0);
 
-add_action('plugins_loaded', 'coinpayments_gateway_load', 0);
-
-function coinpayments_gateway_load()
-{
-
-    class WC_Gateway_Coinpayments_Plugin
+    function coinpayments_gateway_load()
     {
 
-        public function __construct()
+        class WC_Gateway_Coinpayments_Plugin
         {
 
-            $this->load_textdomain();
-            $this->includes();
-            $this->actions();
-            $this->filters();
+            public function __construct()
+            {
 
-        }
+                $this->load_textdomain();
+                $this->includes();
+                $this->actions();
+                $this->filters();
 
-        public function load_textdomain()
-        {
-            load_plugin_textdomain('coinpayments-payment-gateway-for-woocommerce', false, plugin_basename(dirname(__FILE__)) . '/i18n/languages');
-        }
-
-        public function includes()
-        {
-            include_once dirname(__FILE__) . '/includes/class-wc-gateway-coinpayments-gateway.php';
-            include_once dirname(__FILE__) . '/includes/class-wc-gateway-coinpayments-api-handler.php';
-        }
-
-        public function actions()
-        {
-            add_action('init', array(__CLASS__, 'custom_rewrite_rule'), 10, 0);
-        }
-
-        public function filters()
-        {
-            add_filter('woocommerce_payment_gateways', array(__CLASS__, 'add_gateway'), 0);
-        }
-
-        public static function add_gateway($methods)
-        {
-            if (!in_array('WC_Gateway_Coinpayments', $methods)) {
-                $methods[] = 'WC_Gateway_Coinpayments';
             }
-            return $methods;
+
+            public function load_textdomain()
+            {
+                load_plugin_textdomain('coinpayments-payment-gateway-for-woocommerce', false, plugin_basename(dirname(__FILE__)) . '/i18n/languages');
+            }
+
+            public function includes()
+            {
+                include_once dirname(__FILE__) . '/includes/class-wc-gateway-coinpayments-gateway.php';
+                include_once dirname(__FILE__) . '/includes/class-wc-gateway-coinpayments-api-handler.php';
+            }
+
+            public function actions()
+            {
+                add_action('init', array(__CLASS__, 'custom_rewrite_rule'), 10, 0);
+            }
+
+            public function filters()
+            {
+                add_filter('woocommerce_payment_gateways', array(__CLASS__, 'add_gateway'), 0);
+            }
+
+            public static function add_gateway($methods)
+            {
+                if (!in_array('WC_Gateway_Coinpayments', $methods)) {
+                    $methods[] = 'WC_Gateway_Coinpayments';
+                }
+                return $methods;
+            }
+
+            public static function custom_rewrite_rule()
+            {
+                add_rewrite_rule('payment/coinpayments/([^/]*)/([^/]*)/?', 'index.php?coinpayments_page=$matches[1]&coin_param=$matches[2]', 'top');
+            }
+
         }
 
-        public static function custom_rewrite_rule()
-        {
-            add_rewrite_rule('payment/coinpayments/([^/]*)/([^/]*)/?', 'index.php?coinpayments_page=$matches[1]&coin_param=$matches[2]', 'top');
+        if (class_exists('WC_Payment_Gateway')) {
+            new WC_Gateway_Coinpayments_Plugin();
         }
-
-    }
-
-    if (class_exists('WC_Payment_Gateway')) {
-        new WC_Gateway_Coinpayments_Plugin();
     }
 }
