@@ -54,12 +54,12 @@ function coinpayments_gateway_load()
 
         public function actions()
         {
-            add_action('init', [__CLASS__, 'custom_rewrite_rule'], 10, 0);
+            add_action('init', array(__CLASS__, 'custom_rewrite_rule'), 10, 0);
         }
 
         public function filters()
         {
-            add_filter('woocommerce_payment_gateways', [__CLASS__, 'add_gateway'], 0);
+            add_filter('woocommerce_payment_gateways', array(__CLASS__, 'add_gateway'), 0);
         }
 
         public static function add_gateway($methods)
@@ -77,7 +77,7 @@ function coinpayments_gateway_load()
 
     }
 
-    if(class_exists('WC_Payment_Gateway')){
+    if (class_exists('WC_Payment_Gateway')) {
         new WC_Gateway_Coinpayments_Plugin();
     }
 }

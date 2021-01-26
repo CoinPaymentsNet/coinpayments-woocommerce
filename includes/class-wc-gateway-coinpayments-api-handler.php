@@ -98,9 +98,9 @@ class WC_Gateway_Coinpayments_API_Handler
 
         $params = array(
             "notificationsUrl" => $this->get_notification_url($event),
-            "notifications" => [
+            "notifications" => array(
                 sprintf("invoice%s", $event),
-            ],
+            ),
         );
 
         return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
@@ -185,11 +185,11 @@ class WC_Gateway_Coinpayments_API_Handler
         $params = array(
             'clientId' => $this->client_id,
             'invoiceId' => $invoice_id,
-            'amount' => [
+            'amount' => array(
                 'currencyId' => $currency_id,
                 "displayValue" => $display_value,
                 'value' => $amount
-            ],
+            ),
         );
 
         $params = $this->append_invoice_metadata($params);
@@ -213,6 +213,15 @@ class WC_Gateway_Coinpayments_API_Handler
     public function get_api_url($action)
     {
         return sprintf('%s/api/v%s/%s', self::API_URL, self::API_VERSION, $action);
+    }
+
+    /**
+     * @param $order_id
+     * @return string
+     */
+    public function get_invoice_id($order_id)
+    {
+        return sprintf('%s|%s', md5(get_site_url()), $order_id);
     }
 
     /**

@@ -9,6 +9,18 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 {
 
     public static $webhook_checked;
+    /**
+     * @var string
+     */
+    protected $client_id;
+    /**
+     * @var string
+     */
+    protected $client_secret;
+    /**
+     * @var string
+     */
+    protected $webhooks;
 
     /**
      * WC_Gateway_Coinpayments constructor.
@@ -109,7 +121,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
      *
      * @access public
      * @param int $order_id
-     * @return string
+     * @return array
      * @throws Exception
      */
     public function process_payment($order_id)
@@ -125,7 +137,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
         $order_data = $order->get_base_data();
 
-        $invoice_id = sprintf('%s|%s', md5(get_site_url()), $order_data['id']);
+        $invoice_id = $coinpayments_api->get_invoice_id($order->get_id());
 
         if (empty($invoice = WC()->session->get($invoice_id))) {
             $currency_code = $order_data['currency'];
@@ -164,7 +176,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
         $request_data = json_decode($content, true);
 
-        if ($coinpayments_api->check_data_signature($signature, $content, $request_data['invoice']['status']) && isset($request_data['invoice']['invoiceId'])) {
+        if ($this->webhooks && $coinpayments_api->check_data_signature($signature, $content, $request_data['invoice']['status']) && isset($request_data['invoice']['invoiceId'])) {
             $invoice_str = $request_data['invoice']['invoiceId'];
             $invoice_str = explode('|', $invoice_str);
 
@@ -173,16 +185,27 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
             if ($host_hash == md5(get_site_url())) {
                 if (!empty($order = wc_get_order($invoice_id))) {
-                    $completed_statuses = array(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT, WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT);
+                    $completed_statuses = $this->get_completed_statuses();
                     if (in_array($request_data['invoice']['status'], $completed_statuses)) {
                         update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
                         $order->payment_complete();
-                    } elseif ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
+                    } elseif($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
                         $order->update_status('cancelled', 'CoinPayments.net Payment cancelled/timed out');
                     }
                 }
             }
         }
+    }
+
+    /**
+     * @return array
+     */
+    public function get_completed_statuses()
+    {
+        return array(
+            WC_Gateway_Coinpayments_API_Handler::PAID_EVENT,
+            WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT
+        );
     }
 
 }
