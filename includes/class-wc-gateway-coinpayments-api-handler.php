@@ -178,8 +178,10 @@ class WC_Gateway_Coinpayments_API_Handler
 
         if ($this->webhooks) {
             $action = self::API_MERCHANT_INVOICE_ACTION;
+            $notes_field_name = 'notes';
         } else {
             $action = self::API_SIMPLE_INVOICE_ACTION;
+            $notes_field_name = 'notesToRecipient';
         }
 
         $params = array(
@@ -192,7 +194,7 @@ class WC_Gateway_Coinpayments_API_Handler
             ),
         );
 
-        $params = $this->append_invoice_metadata($params);
+        $this->append_invoice_metadata($params, $notes_field_name);
         return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
     }
 
@@ -300,14 +302,21 @@ class WC_Gateway_Coinpayments_API_Handler
 
     /**
      * @param $request_data
+     * @param $notes_field_name
      * @return mixed
      */
-    protected function append_invoice_metadata($request_data)
+    protected function append_invoice_metadata($request_data, $notes_field_name)
     {
         $request_data['metadata'] = array(
             "integration" => sprintf("Woocommerce v.%s", WC()->version),
             "hostname" => get_site_url(),
         );
+
+        $request_data[$notes_field_name] = sprintf(
+            "%s / Store name: %s / Order # %s",
+            get_site_url(),
+            get_bloginfo('name'),
+            explode('|', $request_data['invoiceId'])[1]);
 
         return $request_data;
     }
