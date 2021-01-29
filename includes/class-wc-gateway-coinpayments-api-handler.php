@@ -170,10 +170,11 @@ class WC_Gateway_Coinpayments_API_Handler
      * @param $currency_id
      * @param $amount
      * @param $display_value
+     * @param $billing_data
      * @return bool|mixed
      * @throws Exception
      */
-    public function create_invoice($invoice_id, $currency_id, $amount, $display_value)
+    public function create_invoice($invoice_id, $currency_id, $amount, $display_value, $billing_data)
     {
 
         if ($this->webhooks) {
@@ -187,14 +188,15 @@ class WC_Gateway_Coinpayments_API_Handler
         $params = array(
             'clientId' => $this->client_id,
             'invoiceId' => $invoice_id,
+            'buyer' => $this->append_billing_data($billing_data),
             'amount' => array(
                 'currencyId' => $currency_id,
                 "displayValue" => $display_value,
-                'value' => $amount
+                'value' => $amount,
             ),
         );
 
-        $this->append_invoice_metadata($params, $notes_field_name);
+        $params = $this->append_invoice_metadata($params, $notes_field_name);
         return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
     }
 
@@ -319,6 +321,31 @@ class WC_Gateway_Coinpayments_API_Handler
             explode('|', $request_data['invoiceId'])[1]);
 
         return $request_data;
+    }
+
+    /**
+     * @param $billing_data
+     * @return array
+     */
+    function append_billing_data($billing_data)
+    {
+        return array(
+            "companyName" => $billing_data['company'],
+            "name" => array(
+                "firstName" => $billing_data['first_name'],
+                "lastName" => $billing_data['last_name']
+            ),
+            "emailAddress" => $billing_data['email'],
+            "phoneNumber" => $billing_data['phone'],
+            "address" => array(
+                "address1" => $billing_data['address_1'],
+                "address2" => $billing_data['address_2'],
+                "provinceOrState" => $billing_data['state'],
+                "city" => $billing_data['city'],
+                "countryCode" => $billing_data['country'],
+                "postalCode" => $billing_data['postcode']
+            )
+        );
     }
 
     /**

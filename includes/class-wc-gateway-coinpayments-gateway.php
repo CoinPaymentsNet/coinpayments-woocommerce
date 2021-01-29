@@ -146,7 +146,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $amount = intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', ''));
             $display_value = $order_data['total'];
 
-            $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value);
+            $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value, $order_data['billing']);
             if ($this->webhooks) {
                 $invoice = array_shift($invoice['invoices']);
             }
