@@ -45,7 +45,9 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             '<a href="%s" target="_blank" title="CoinPayments.net">CoinPayments.net</a>',
             esc_url('https://alpha.coinpayments.net/')
         );
-        $this->description = sprintf('%s<br/>%s', $this->get_option('description'), $coinpayments_link);
+
+        $coin_description = 'Pay with Bitcoin, Litecoin, or other altcoins via ';
+        $this->description = sprintf('%s<br/>%s<br/>%s', $this->get_option('description'), $coin_description, $coinpayments_link);
         $this->client_id = $this->get_option('client_id');
         $this->client_secret = $this->get_option('client_secret');
         $this->webhooks = $this->get_option('webhooks');

@@ -23,7 +23,7 @@ return array(
         'title' => __('Description', 'coinpayments-payment-gateway-for-woocommerce'),
         'type' => 'textarea',
         'description' => __('This controls the description which the user sees during checkout.', 'coinpayments-payment-gateway-for-woocommerce'),
-        'default' => __('Pay with Bitcoin, Litecoin, or other altcoins via CoinPayments.net', 'coinpayments-payment-gateway-for-woocommerce')
+        'default' => __('')
     ),
     'client_id' => array(
         'title' => __('Client ID', 'coinpayments-payment-gateway-for-woocommerce'),
