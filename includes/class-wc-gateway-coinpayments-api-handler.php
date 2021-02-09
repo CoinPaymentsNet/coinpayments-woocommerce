@@ -166,37 +166,32 @@ class WC_Gateway_Coinpayments_API_Handler
     }
 
     /**
-     * @param $invoice_id
-     * @param $currency_id
-     * @param $amount
-     * @param $display_value
-     * @param $billing_data
+     * @param $invoice_params
      * @return bool|mixed
      * @throws Exception
      */
-    public function create_invoice($invoice_id, $currency_id, $amount, $display_value, $billing_data)
+    public function create_invoice($invoice_params)
     {
 
         if ($this->webhooks) {
             $action = self::API_MERCHANT_INVOICE_ACTION;
-            $notes_field_name = 'notes';
         } else {
             $action = self::API_SIMPLE_INVOICE_ACTION;
-            $notes_field_name = 'notesToRecipient';
         }
 
         $params = array(
             'clientId' => $this->client_id,
-            'invoiceId' => $invoice_id,
-            'buyer' => $this->append_billing_data($billing_data),
+            'invoiceId' => $invoice_params['invoice_id'],
+            'buyer' => $this->append_billing_data($invoice_params['billing_data']),
             'amount' => array(
-                'currencyId' => $currency_id,
-                "displayValue" => $display_value,
-                'value' => $amount,
+                'currencyId' => $invoice_params['currency_id'],
+                "displayValue" => $invoice_params['display_value'],
+                'value' => $invoice_params['amount'],
             ),
+            'notesToRecipient' => $invoice_params['notes_link'],
         );
 
-        $params = $this->append_invoice_metadata($params, $notes_field_name);
+        $params = $this->append_invoice_metadata($params);
         return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
     }
 
@@ -304,21 +299,14 @@ class WC_Gateway_Coinpayments_API_Handler
 
     /**
      * @param $request_data
-     * @param $notes_field_name
      * @return mixed
      */
-    protected function append_invoice_metadata($request_data, $notes_field_name)
+    protected function append_invoice_metadata($request_data)
     {
         $request_data['metadata'] = array(
             "integration" => sprintf("Woocommerce v.%s", WC()->version),
             "hostname" => get_site_url(),
         );
-
-        $request_data[$notes_field_name] = sprintf(
-            "%s / Store name: %s / Order # %s",
-            get_site_url(),
-            get_bloginfo('name'),
-            explode('|', $request_data['invoiceId'])[1]);
 
         return $request_data;
     }

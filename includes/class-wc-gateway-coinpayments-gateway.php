@@ -145,14 +145,22 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $currency_code = $order_data['currency'];
             $coin_currency = $coinpayments_api->get_coin_currency($currency_code);
 
-            $amount = intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', ''));
-            $display_value = $order_data['total'];
+            $invoice_params = array(
+                'invoice_id' => $invoice_id,
+                'currency_id' => $coin_currency['id'],
+                'amount' => intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', '')),
+                'display_value' => $order_data['total'],
+                'billing_data' => $order_data['billing'],
+                'notes_link' => admin_url('post.php?post=' . $order_id) . '&action=edit',
+            );
 
-            $invoice = $coinpayments_api->create_invoice($invoice_id, $coin_currency['id'], $amount, $display_value, $order_data['billing']);
+            $invoice = $coinpayments_api->create_invoice($invoice_params);
             if ($this->webhooks) {
                 $invoice = array_shift($invoice['invoices']);
             }
-            WC()->session->set($invoice_id, $invoice);
+            if(!empty($invoice)){
+                WC()->session->set($invoice_id, $invoice);
+            }
         }
 
         $coinpayments_args = array(
@@ -191,7 +199,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
                     if (in_array($request_data['invoice']['status'], $completed_statuses)) {
                         update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
                         $order->payment_complete();
-                    } elseif($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
+                    } elseif ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
                         $order->update_status('cancelled', 'CoinPayments.net Payment cancelled/timed out');
                     }
                 }
