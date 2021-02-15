@@ -21,6 +21,10 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
      * @var string
      */
     protected $webhooks;
+    /**
+     * @var string
+     */
+    protected $debug_email;
 
     /**
      * WC_Gateway_Coinpayments constructor.
@@ -51,12 +55,15 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         $this->client_id = $this->get_option('client_id');
         $this->client_secret = $this->get_option('client_secret');
         $this->webhooks = $this->get_option('webhooks');
+        $this->debug_email = $this->get_option('debug_email');
 
 
         $this->form_submission_method = $this->get_option('form_submission_method') == 'yes' ? true : false;
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_api_wc_gateway_coinpayments', array($this, 'check_wehhook_notification'));
+        add_action('coinpayments_debug_notification', array($this, 'send_debug_email'));
+
 
         $save_action = ($_SERVER['REQUEST_METHOD'] == 'POST' &&
             isset($_GET['page']) && $_GET['page'] == "wc-settings" &&
@@ -67,14 +74,37 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             self::$webhook_checked = true;
             $coinpayments = new WC_Gateway_Coinpayments_API_Handler($_POST['woocommerce_coinpayments_client_id'], $_POST['woocommerce_coinpayments_webhooks'], $_POST['woocommerce_coinpayments_client_secret']);
             if (!empty($_POST['woocommerce_coinpayments_client_id']) && !empty($_POST['woocommerce_coinpayments_webhooks']) && !empty($_POST['woocommerce_coinpayments_client_secret'])) {
-                if (!$coinpayments->check_webhook()) {
-                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT);
-                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT);
-                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
+                try {
+                    if (!$coinpayments->check_webhook()) {
+                        $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT);
+                        $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT);
+                        $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
+                    }
+                } catch (Exception $e) {
+                    do_action('coinpayments_debug_notification', $e);
+                    add_action('admin_notices', array($this, 'admin_error'), 10, 1);
                 }
             }
         }
 
+    }
+
+    public function admin_error($message)
+    {
+        echo '<div class="notice notice-error is-dismissible"> <p>' . __('CoinPayments.NET credentials is not valid!', 'coinpayments-payment-gateway-for-woocommerce') . '</p></div>';
+    }
+
+
+    public function send_debug_email($error)
+    {
+        if (!empty($this->debug_email)) {
+            $to = $this->debug_email;
+            $subject = __('Coinpayments.NET gateway debug notification | ' . get_bloginfo('name'), 'coinpayments-payment-gateway-for-woocommerce');
+            $body = __('There are next issues with coinpayments payment gateway:<br/>', 'coinpayments-payment-gateway-for-woocommerce');
+            $body .= $error->getMessage();
+            $headers = array('Content-Type: text/html; charset=UTF-8');
+            wp_mail($to, $subject, $body, $headers);
+        }
     }
 
     /**
@@ -154,12 +184,15 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
                 'notes_link' => admin_url('post.php?post=' . $order_id) . '&action=edit',
             );
 
-            $invoice = $coinpayments_api->create_invoice($invoice_params);
-            if ($this->webhooks) {
-                $invoice = array_shift($invoice['invoices']);
-            }
-            if(!empty($invoice)){
+            try {
+                $invoice = $coinpayments_api->create_invoice($invoice_params);
+                if ($this->webhooks) {
+                    $invoice = array_shift($invoice['invoices']);
+                }
                 WC()->session->set($invoice_id, $invoice);
+            } catch (Exception $e) {
+                do_action('coinpayments_debug_notification', $e);
+                throw new Exception(sprintf('Can\'t create Coinpayments.NET invoice, please contact to %s', get_option('admin_email')), $e->getCode());
             }
         }
 

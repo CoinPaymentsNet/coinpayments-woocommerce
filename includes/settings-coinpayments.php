@@ -48,4 +48,10 @@ return array(
         'description' => __('Please enter your CoinPayments.net Client Secret.', 'coinpayments-payment-gateway-for-woocommerce'),
         'default' => '',
     ),
+    'debug_email' => array(
+        'title' => __('Debug email', 'coinpayments-payment-gateway-for-woocommerce'),
+        'type' => 'text',
+        'description' => __('You will be notified about errors in the payment gateway at this email address.', 'coinpayments-payment-gateway-for-woocommerce'),
+        'default' => '',
+    ),
 );

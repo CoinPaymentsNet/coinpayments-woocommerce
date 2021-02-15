@@ -275,6 +275,7 @@ class WC_Gateway_Coinpayments_API_Handler
             }
 
             $options[CURLOPT_HTTPHEADER] = $headers;
+            $options[CURLOPT_HEADER] = true;
 
             if ($method == 'POST') {
                 $options[CURLOPT_POST] = true;
@@ -287,12 +288,26 @@ class WC_Gateway_Coinpayments_API_Handler
 
             curl_setopt_array($curl, $options);
 
-            $response = json_decode(curl_exec($curl), true);
+            $result = curl_exec($curl);
 
+            $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+
+            $body = substr($result, $headerSize);
+
+            if (substr($http_code, 0, 1) == 2) {
+                $response = json_decode($body, true);
+            } elseif (curl_error($curl)) {
+                throw new Exception($body, $http_code);
+            } elseif ($http_code == 400) {
+                throw new Exception($body, 400);
+            } elseif (substr($http_code, 0, 1) == 4) {
+                throw new Exception(__('CoinPayments.NET authentication failed!', 'coinpayments-payment-gateway-for-woocommerce'), $http_code);
+            }
             curl_close($curl);
 
         } catch (Exception $e) {
-
+            throw new Exception($e->getMessage(), $e->getCode(), $e);
         }
         return $response;
     }
@@ -312,6 +327,7 @@ class WC_Gateway_Coinpayments_API_Handler
     }
 
     /**
+     * @param $request_params
      * @param $billing_data
      * @return array
      */
