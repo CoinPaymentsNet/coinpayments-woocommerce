@@ -175,13 +175,19 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $currency_code = $order_data['currency'];
             $coin_currency = $coinpayments_api->get_coin_currency($currency_code);
 
+            $notes_link = sprintf(
+                "%s|Store name: %s|Order #%s",
+                admin_url('post.php?post=' . $order_id) . '&action=edit',
+                get_bloginfo('name'),
+                $order->get_id());
+
             $invoice_params = array(
                 'invoice_id' => $invoice_id,
                 'currency_id' => $coin_currency['id'],
                 'amount' => intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', '')),
                 'display_value' => $order_data['total'],
                 'billing_data' => $order_data['billing'],
-                'notes_link' => admin_url('post.php?post=' . $order_id) . '&action=edit',
+                'notes_link' => $notes_link,
             );
 
             try {
