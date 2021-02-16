@@ -77,7 +77,6 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
                 try {
                     if (!$coinpayments->check_webhook()) {
                         $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT);
-                        $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT);
                         $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
                     }
                 } catch (Exception $e) {
@@ -234,8 +233,7 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 
             if ($host_hash == md5(get_site_url())) {
                 if (!empty($order = wc_get_order($invoice_id))) {
-                    $completed_statuses = $this->get_completed_statuses();
-                    if (in_array($request_data['invoice']['status'], $completed_statuses)) {
+                    if ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::PAID_EVENT) {
                         update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
                         $order->payment_complete();
                     } elseif ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
@@ -244,17 +242,6 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
                 }
             }
         }
-    }
-
-    /**
-     * @return array
-     */
-    public function get_completed_statuses()
-    {
-        return array(
-            WC_Gateway_Coinpayments_API_Handler::PAID_EVENT,
-            WC_Gateway_Coinpayments_API_Handler::PENDING_EVENT
-        );
     }
 
 }

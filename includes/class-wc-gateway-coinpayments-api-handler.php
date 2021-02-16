@@ -28,7 +28,6 @@ class WC_Gateway_Coinpayments_API_Handler
     const API_CHECKOUT_ACTION = 'checkout';
     const FIAT_TYPE = 'fiat';
 
-    const PENDING_EVENT = 'Pending';
     const PAID_EVENT = 'Paid';
     const CANCELLED_EVENT = 'Cancelled';
 
@@ -76,7 +75,6 @@ class WC_Gateway_Coinpayments_API_Handler
             }
             if (
                 in_array($this->get_notification_url(self::PAID_EVENT), $webhooks_urls_list) &&
-                in_array($this->get_notification_url(self::PENDING_EVENT), $webhooks_urls_list) &&
                 in_array($this->get_notification_url(self::CANCELLED_EVENT), $webhooks_urls_list)
             ) {
                 $exists = true;
@@ -190,7 +188,7 @@ class WC_Gateway_Coinpayments_API_Handler
             'notesToRecipient' => $invoice_params['notes_link'],
         );
 
-        $params = $this->append_billing_data($params,$invoice_params['billing_data']);
+        $params = $this->append_billing_data($params, $invoice_params['billing_data']);
         $params = $this->append_invoice_metadata($params);
         return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
     }
