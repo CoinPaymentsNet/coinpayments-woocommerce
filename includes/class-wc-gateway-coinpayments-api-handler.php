@@ -338,9 +338,12 @@ class WC_Gateway_Coinpayments_API_Handler
                 'firstName' => $billing_data['first_name'],
                 'lastName' => $billing_data['last_name']
             ),
-            'emailAddress' => $billing_data['email'],
             'phoneNumber' => $billing_data['phone'],
         );
+
+        if (preg_match('/^.*@.*$/', $billing_data['email'])) {
+            $request_params['buyer']['emailAddress'] = $billing_data['email'];
+        }
 
         if (!empty($billing_data['address_1']) &&
             !empty($billing_data['city']) &&
