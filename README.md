@@ -18,4 +18,5 @@ In no event will CoinPayments Inc. or its directors, officers, employees, shareh
 2. Click on Business Tools -> Intergrations -> Pre-built Plugins -> + add Intergration button
 3. Select this plug-in from the dropdown menu
 4. Click the download plugin button
-5. ![Wizzard](https://user-images.githubusercontent.com/78020458/115421813-f8a40600-a204-11eb-9203-c1c5a1c1b449.jpg)
+5.   
+![Wizzard](https://user-images.githubusercontent.com/78020458/115421813-f8a40600-a204-11eb-9203-c1c5a1c1b449.jpg)
