@@ -1,4 +1,4 @@
-#WooCommerce
+# WooCommerce
 
 IMPORTANT NOTE:
 
