@@ -3,8 +3,8 @@ Contributors: CoinPayments, woothemes, mikejolley, jameskoster, CoenJacobs
 Donate link: https://gocps.net/3ncyzcq3sy0ww1rxghleip1aky/
 Tags: bitcoin, litecoin, altcoins, altcoin, dogecoin, feathercoin, netcoin, peercoin, blackcoin, darkcoin, ripple, ethereum, ether, woocommerce
 Requires at least: 3.7.0
-Tested up to: 5.2.2
-Stable tag: 1.1.0
+Tested up to: 6.2.2
+Stable tag: 1.0.15
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,8 +24,14 @@ This plugin implements a payment gateway for WooCommerce to let buyers pay with 
 
 == Changelog ==
 
-= 1.1.0 =
-* Modes and currencies added.
+= 1.0.15 =
+* Updated WordPress compatibility tag.
+
+= 1.0.14 =
+* Updated WordPress compatibility tag.
+
+= 1.0.13 =
+* Logo update.
 
 = 1.0.12 =
 * Improved compatibility with new WooCommerce versions.
