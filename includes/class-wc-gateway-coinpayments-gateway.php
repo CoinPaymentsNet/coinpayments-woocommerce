@@ -7,8 +7,8 @@
 
 class WC_Gateway_Coinpayments extends WC_Payment_Gateway
 {
+    const GATEWAY_ID = 'coinpayments';
 
-    public static $webhook_checked;
     /**
      * @var string
      */
@@ -32,12 +32,12 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
      */
     public function __construct()
     {
-
-
-        $this->id = 'coinpayments';
+        $this->id = self::GATEWAY_ID;
         $this->icon = apply_filters('woocommerce_coinpayments_icon', plugins_url() . '/' . plugin_basename(dirname(__FILE__) . '/../') . '/assets/images/icons/coinpayments.svg');
         $this->has_fields = false;
         $this->method_title = __('CoinPayments.net', 'coinpayments-payment-gateway-for-woocommerce');
+        $this->method_description = $this->get_option('description');
+        $this->supports = ['products', 'block']; // Add support for blocks
 
         // Load the settings.
         $this->init_form_fields();
@@ -56,41 +56,59 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
         $this->client_secret = $this->get_option('client_secret');
         $this->webhooks = $this->get_option('webhooks');
         $this->debug_email = $this->get_option('debug_email');
-
-
         $this->form_submission_method = $this->get_option('form_submission_method') == 'yes' ? true : false;
 
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_api_wc_gateway_coinpayments', array($this, 'check_wehhook_notification'));
         add_action('coinpayments_debug_notification', array($this, 'send_debug_email'));
+    }
 
+    /**
+     * Processes and saves options.
+     * If there is an error thrown, will continue to save and validate fields, but will leave the erroring field out.
+     *
+     * @return bool was anything saved?
+     */
+    public function process_admin_options() {
+        // Load form data to get updated values
+        $postData = $this->get_post_data();
+        $hasErrors = false;
 
-        $save_action = ($_SERVER['REQUEST_METHOD'] == 'POST' &&
-            isset($_GET['page']) && $_GET['page'] == "wc-settings" &&
-            isset($_GET['tab']) && $_GET['tab'] == "checkout" &&
-            isset($_GET['section']) && $_GET['section'] == "coinpayments");
+        // Validate required fields
+        $clientId = $postData[sprintf('woocommerce_%s_client_id', $this->id)] ?? null;
+        if (empty($clientId)) {
+            WC_Admin_Settings::add_error('You should provide Client ID.');
+            $hasErrors = true;
+        }
 
-        if ($save_action && !self::$webhook_checked) {
-            self::$webhook_checked = true;
-            $coinpayments = new WC_Gateway_Coinpayments_API_Handler($_POST['woocommerce_coinpayments_client_id'], $_POST['woocommerce_coinpayments_webhooks'], $_POST['woocommerce_coinpayments_client_secret']);
-            if (!empty($_POST['woocommerce_coinpayments_client_id']) && !empty($_POST['woocommerce_coinpayments_webhooks']) && !empty($_POST['woocommerce_coinpayments_client_secret'])) {
-                try {
-                    if (!$coinpayments->check_webhook()) {
-                        $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT);
-                        $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
-                    }
-                } catch (Exception $e) {
-                    do_action('coinpayments_debug_notification', $e);
-                    add_action('admin_notices', array($this, 'admin_error'), 10, 1);
+        $clientSecret = $postData['woocommerce_' . $this->id . '_client_secret'] ?? null;
+        if (empty($clientSecret)) {
+            WC_Admin_Settings::add_error('You should provide Client Secret.');
+            $hasErrors = true;
+        }
+
+        if (!$hasErrors) {
+            $isWebhooksEnabled = (bool)($postData['woocommerce_' . $this->id . '_webhooks'] ?? false);
+            $coinpayments = new WC_Gateway_Coinpayments_API_Handler($clientId, $clientSecret);
+            try {
+                $coinpayments->get_invoices();
+                if ($isWebhooksEnabled && !$coinpayments->isWebhooksExists()) {
+                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::PAID_EVENT);
+                    $coinpayments->create_webhook(WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT);
                 }
+            } catch (Exception $e) {
+                do_action('coinpayments_debug_notification', $e);
+                WC_Admin_Settings::add_error(__('CoinPayments.NET credentials are not valid!', 'coinpayments-payment-gateway-for-woocommerce'));
+                $hasErrors = true;
             }
         }
 
-    }
+        // Proceed with saving if no errors
+        if (!$hasErrors) {
+            return parent::process_admin_options();
+        }
 
-    public function admin_error($message)
-    {
-        echo '<div class="notice notice-error is-dismissible"> <p>' . __('CoinPayments.NET credentials is not valid!', 'coinpayments-payment-gateway-for-woocommerce') . '</p></div>';
+        return false; // Prevents saving if there are errors
     }
 
 
@@ -164,79 +182,170 @@ class WC_Gateway_Coinpayments extends WC_Payment_Gateway
             $order->update_status('pending', 'Customer is being redirected to CoinPayments...');
         }
 
-        $coinpayments_api = new WC_Gateway_Coinpayments_API_Handler($this->client_id, $this->webhooks, $this->client_secret);
+        $coinpaymentsApi = new WC_Gateway_Coinpayments_API_Handler($this->client_id, $this->client_secret);
 
-        $order_data = $order->get_base_data();
+        $orderData = $order->get_base_data();
+        $invoiceId = $coinpaymentsApi->get_invoice_id($order->get_id());
 
-        $invoice_id = $coinpayments_api->get_invoice_id($order->get_id());
-
-        if (empty($invoice = WC()->session->get($invoice_id))) {
-            $currency_code = $order_data['currency'];
-            $coin_currency = $coinpayments_api->get_coin_currency($currency_code);
-
-            $notes_link = sprintf(
+        if (empty($invoice = WC()->session->get($invoiceId))) {
+            $coinCurrency = $coinpaymentsApi->get_coin_currency($orderData['currency']);
+            $notesLink = sprintf(
                 "%s|Store name: %s|Order #%s",
                 admin_url('post.php?post=' . $order_id) . '&action=edit',
                 get_bloginfo('name'),
                 $order->get_id());
 
-            $invoice_params = array(
-                'invoice_id' => $invoice_id,
-                'currency_id' => $coin_currency['id'],
-                'amount' => intval(number_format($order_data['total'], $coin_currency['decimalPlaces'], '', '')),
-                'display_value' => $order_data['total'],
-                'billing_data' => $order_data['billing'],
-                'notes_link' => $notes_link,
+            $invoiceParams = array(
+                'invoiceId' => $invoiceId,
+                'items' => $this->getOrderItems($order, $coinCurrency),
+                'amount' => $this->getOrderAmount($order, $coinCurrency),
+                'notesToRecipient' => $notesLink,
             );
 
             try {
-                $invoice = $coinpayments_api->create_invoice($invoice_params);
-                if ($this->webhooks) {
-                    $invoice = array_shift($invoice['invoices']);
-                }
-                WC()->session->set($invoice_id, $invoice);
+                $invoice = $coinpaymentsApi->create_invoice($invoiceParams, $orderData['billing']);
+                $invoice = array_shift($invoice['invoices']);
+                WC()->session->set($invoiceId, $invoice);
             } catch (Exception $e) {
                 do_action('coinpayments_debug_notification', $e);
-                throw new Exception(sprintf('Can\'t create Coinpayments.NET invoice, please contact to %s', get_option('admin_email')), $e->getCode());
+                throw new Exception(sprintf('Can\'t create Coinpayments.NET invoice, please contact to %s|%s', get_option('admin_email'), $e->getMessage()), $e->getCode());
             }
         }
 
-        $coinpayments_args = array(
-            'invoice-id' => $invoice['id'],
-            'success-url' => $this->get_return_url($order),
-            'cancel-url' => esc_url_raw($order->get_cancel_order_url_raw()),
+        return array(
+            'result' => 'success',
+            'redirect' => $this->getCoinCheckoutRedirectUrl(
+                $invoice['id'],
+                $this->get_return_url($order),
+                esc_url_raw($order->get_cancel_order_url_raw())
+            )
         );
-        $coinpayments_args = http_build_query($coinpayments_args, '', '&');
-        $redirect_url = sprintf('%s/%s/?%s', WC_Gateway_Coinpayments_API_Handler::CHECKOUT_URL, WC_Gateway_Coinpayments_API_Handler::API_CHECKOUT_ACTION, $coinpayments_args);
+    }
 
-        return array('result' => 'success', 'redirect' => $redirect_url);
+    private function getCoinCheckoutRedirectUrl($coinInvoiceId, $successUrl, $cancelUrl)
+    {
+        return sprintf(
+            '%s/%s/?invoice-id=%s&success-url=%s&cancel-url=%s',
+            WC_Gateway_Coinpayments_API_Handler::CHECKOUT_URL,
+            WC_Gateway_Coinpayments_API_Handler::API_CHECKOUT_ACTION,
+            $coinInvoiceId,
+            $successUrl,
+            $cancelUrl
+        );
+    }
+
+    private function getOrderAmount(WC_Order $order, $coinCurrency): array
+    {
+        $smallestUnitsMultiplier = pow(10, $coinCurrency['decimalPlaces']);
+        $orderAmountBreakdown = [
+            'subtotal' => [
+                'currencyId' => $coinCurrency['id'],
+                'displayValue' => $this->getAmountDisplayValue($order->get_subtotal(), $coinCurrency),
+                'value' => $order->get_subtotal() * $smallestUnitsMultiplier,
+            ]
+        ];
+
+        $taxTotal = $order->get_total_tax();
+        if ($taxTotal) {
+            $orderAmountBreakdown['taxTotal'] = [
+                'currencyId' => $coinCurrency['id'],
+                'displayValue' => $this->getAmountDisplayValue($taxTotal, $coinCurrency),
+                'value' => $taxTotal * $smallestUnitsMultiplier,
+            ];
+        }
+
+        $shipping = $order->get_shipping_total();
+        if ($shipping) {
+            $orderAmountBreakdown['shipping'] = [
+                'currencyId' => $coinCurrency['id'],
+                'displayValue' => $this->getAmountDisplayValue($shipping, $coinCurrency),
+                'value' => $shipping * $smallestUnitsMultiplier,
+            ];
+        }
+
+        $discount = $order->get_discount_total();
+        if ($discount) {
+            $orderAmountBreakdown['discount'] = [
+                'currencyId' => $coinCurrency['id'],
+                'displayValue' => $this->getAmountDisplayValue($discount, $coinCurrency),
+                'value' => $discount * $smallestUnitsMultiplier,
+            ];
+        }
+
+        return [
+            'breakdown' => $orderAmountBreakdown,
+            'currencyId' => $coinCurrency['id'],
+            'displayValue' => $this->getAmountDisplayValue($order->get_total(), $coinCurrency),
+            'value' => $order->get_total() * $smallestUnitsMultiplier,
+        ];
+    }
+
+    private function getOrderItems(WC_Order $order, $coinCurrency): array
+    {
+        $smallestUnitsMultiplier = pow(10, $coinCurrency['decimalPlaces']);
+
+        /** @var WC_Order_Item_Product $item */
+        $items = [];
+        foreach ($order->get_items() as $item) {
+            $itemData = [
+                'name' => $item->get_name(),
+                'quantity' => [
+                    'value' => $item->get_quantity(),
+                    'type' => '2',
+                ],
+                'originalAmount' => [
+                    'currencyId' => $coinCurrency['id'],
+                    'value' => $item->get_subtotal() * $smallestUnitsMultiplier,
+                ],
+                'amount' => [
+                    'currencyId' => $coinCurrency['id'],
+                    'value' => $item->get_total() * $smallestUnitsMultiplier,
+                ],
+            ];
+
+            $items[] = $itemData;
+        }
+
+        return $items;
+    }
+
+    private function getAmountDisplayValue(float $amount, array $coinCurrency): string
+    {
+        return sprintf('%s %s', number_format($amount, $coinCurrency['decimalPlaces']), $coinCurrency['symbol']);
     }
 
     public function check_wehhook_notification()
     {
-
         @ob_clean();
 
         $signature = $_SERVER['HTTP_X_COINPAYMENTS_SIGNATURE'];
+        $date = $_SERVER['HTTP_X_COINPAYMENTS_TIMESTAMP'];
         $content = file_get_contents('php://input');
 
-        $coinpayments_api = new WC_Gateway_Coinpayments_API_Handler($this->client_id, $this->webhooks, $this->client_secret);
-
+        $cpsApiHandler = new WC_Gateway_Coinpayments_API_Handler($this->client_id, $this->client_secret);
         $request_data = json_decode($content, true);
+        $invoice = $request_data['invoice'] ?? null;
+        if (is_null($invoice)) {
+            return;
+        }
 
-        if ($this->webhooks && $coinpayments_api->check_data_signature($signature, $content, $request_data['invoice']['status']) && isset($request_data['invoice']['invoiceId'])) {
-            $invoice_str = $request_data['invoice']['invoiceId'];
+        if (!isset($invoice['invoiceId'])) {
+            return;
+        }
+
+        $invoiceState = $invoice['state'] ?? '';
+        $isValidSignature = $cpsApiHandler->check_data_signature($signature, 'POST', $content, $invoiceState, $date);
+        if ($this->webhooks && $isValidSignature) {
+            $invoice_str = $invoice['invoiceId'];
             $invoice_str = explode('|', $invoice_str);
-
             $host_hash = array_shift($invoice_str);
             $invoice_id = array_shift($invoice_str);
-
             if ($host_hash == md5(get_site_url())) {
                 if (!empty($order = wc_get_order($invoice_id))) {
-                    if ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::PAID_EVENT) {
+                    if ($invoiceState == WC_Gateway_Coinpayments_API_Handler::PAID_EVENT) {
                         update_post_meta($order->get_id(), 'CoinPayments payment complete', 'Yes');
                         $order->payment_complete();
-                    } elseif ($request_data['invoice']['status'] == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
+                    } elseif ($invoiceState == WC_Gateway_Coinpayments_API_Handler::CANCELLED_EVENT) {
                         $order->update_status('cancelled', 'CoinPayments.net Payment cancelled/timed out');
                     }
                 }

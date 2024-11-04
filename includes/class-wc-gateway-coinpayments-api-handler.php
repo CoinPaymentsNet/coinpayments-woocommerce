@@ -17,11 +17,10 @@ if (!defined('ABSPATH')) {
 class WC_Gateway_Coinpayments_API_Handler
 {
 
-    const API_URL = 'https://api.coinpayments.net';
-    const CHECKOUT_URL = 'https://checkout.coinpayments.net';
+    const API_URL = 'https://api.coinpayments.com';
+    const CHECKOUT_URL = 'https://checkout.coinpayments.com';
     const API_VERSION = '1';
 
-    const API_SIMPLE_INVOICE_ACTION = 'invoices';
     const API_WEBHOOK_ACTION = 'merchant/clients/%s/webhooks';
     const API_MERCHANT_INVOICE_ACTION = 'merchant/invoices';
     const API_CURRENCIES_ACTION = 'currencies';
@@ -42,46 +41,40 @@ class WC_Gateway_Coinpayments_API_Handler
     protected $client_secret;
 
     /**
-     * @var string
-     */
-    protected $webhooks;
-
-    /**
      * WC_Gateway_Coinpayments_API_Handler constructor.
      * @param $client_id
-     * @param bool $client_secret
+     * @param $client_secret
      */
-    public function __construct($client_id, $webhooks = false, $client_secret = false)
+    public function __construct($client_id, $client_secret)
     {
         $this->client_id = $client_id;
         $this->client_secret = $client_secret;
-        $this->webhooks = $webhooks;
     }
 
     /**
      * @return bool
      * @throws Exception
      */
-    public function check_webhook()
+    public function isWebhooksExists()
     {
-        $exists = false;
         $webhooks_list = $this->get_webhooks_list();
-        if (!empty($webhooks_list)) {
-            $webhooks_urls_list = array();
-            if (!empty($webhooks_list['items'])) {
-                $webhooks_urls_list = array_map(function ($webHook) {
-                    return $webHook['notificationsUrl'];
-                }, $webhooks_list['items']);
-            }
-            if (
-                in_array($this->get_notification_url(self::PAID_EVENT), $webhooks_urls_list) &&
-                in_array($this->get_notification_url(self::CANCELLED_EVENT), $webhooks_urls_list)
-            ) {
-                $exists = true;
-            }
+        if (empty($webhooks_list)) {
+            return false;
         }
 
-        return $exists;
+        $webhooks_urls_list = array();
+        if (!empty($webhooks_list['items'])) {
+            $webhooks_urls_list = array_map(function ($webHook) {
+                return $webHook['notificationsUrl'];
+            }, $webhooks_list['items']);
+        }
+
+        if (in_array($this->get_notification_url(self::PAID_EVENT), $webhooks_urls_list) &&
+            in_array($this->get_notification_url(self::CANCELLED_EVENT), $webhooks_urls_list)) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -101,7 +94,7 @@ class WC_Gateway_Coinpayments_API_Handler
             ),
         );
 
-        return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
+        return $this->send_request('POST', $action, $params);
     }
 
     /**
@@ -111,9 +104,7 @@ class WC_Gateway_Coinpayments_API_Handler
     public function get_webhooks_list()
     {
 
-        $action = sprintf(self::API_WEBHOOK_ACTION, $this->client_id);
-
-        return $this->send_request('GET', $action, $this->client_id, null, $this->client_secret);
+        return $this->send_request('GET', sprintf(self::API_WEBHOOK_ACTION, $this->client_id));
     }
 
     /**
@@ -128,12 +119,8 @@ class WC_Gateway_Coinpayments_API_Handler
             'types' => self::FIAT_TYPE,
             'q' => $name,
         );
-        $items = array();
 
-        $listData = $this->get_coin_currencies($params);
-        if (!empty($listData['items'])) {
-            $items = $listData['items'];
-        }
+        $items = $this->get_coin_currencies($params);
 
         return array_shift($items);
     }
@@ -145,52 +132,44 @@ class WC_Gateway_Coinpayments_API_Handler
      */
     public function get_coin_currencies($params = array())
     {
-        return $this->send_request('GET', self::API_CURRENCIES_ACTION, false, $params);
+        return $this->send_request('GET', self::API_CURRENCIES_ACTION, $params);
     }
 
     /**
-     * @param $signature
+     * @param $receivedSignature
+     * @param $method
      * @param $content
      * @param $event
+     * @param $date
      * @return bool
      */
-    public function check_data_signature($signature, $content, $event)
+    public function check_data_signature($receivedSignature, $method, $content, $event, $date)
     {
+        $requestUrl = $this->get_notification_url($event);
+        $expectedSignature = $this->create_signature($method, $requestUrl, $date, $content);
 
-        $request_url = $this->get_notification_url($event);
-        $signature_string = sprintf('%s%s', $request_url, $content);
-        $encoded_pure = $this->encode_signature_string($signature_string, $this->client_secret);
-        return $signature == $encoded_pure;
+        return $receivedSignature == $expectedSignature;
     }
 
     /**
-     * @param $invoice_params
+     * @param $invoiceParams
      * @return bool|mixed
      * @throws Exception
      */
-    public function create_invoice($invoice_params)
+    public function create_invoice($invoiceParams, $billingInfo)
     {
-
-        if ($this->webhooks) {
-            $action = self::API_MERCHANT_INVOICE_ACTION;
-        } else {
-            $action = self::API_SIMPLE_INVOICE_ACTION;
-        }
-
-        $params = array(
-            'clientId' => $this->client_id,
-            'invoiceId' => $invoice_params['invoice_id'],
-            'amount' => array(
-                'currencyId' => $invoice_params['currency_id'],
-                "displayValue" => $invoice_params['display_value'],
-                'value' => $invoice_params['amount'],
-            ),
-            'notesToRecipient' => $invoice_params['notes_link'],
-        );
-
-        $params = $this->append_billing_data($params, $invoice_params['billing_data']);
+        $action = self::API_MERCHANT_INVOICE_ACTION;
+        $params = $invoiceParams;
+        $params['clientId'] = $this->client_id;
+        $params = $this->append_billing_data($params, $billingInfo);
         $params = $this->append_invoice_metadata($params);
-        return $this->send_request('POST', $action, $this->client_id, $params, $this->client_secret);
+
+        return $this->send_request('POST', $action, $params);
+    }
+
+    public function get_invoices()
+    {
+        return $this->send_request('GET', self::API_MERCHANT_INVOICE_ACTION);
     }
 
     /**
@@ -221,35 +200,28 @@ class WC_Gateway_Coinpayments_API_Handler
         return sprintf('%s|%s', md5(get_site_url()), $order_id);
     }
 
-    /**
-     * @param $event
-     * @return string
-     */
-    protected function get_notification_url($event = false)
+    protected function get_notification_url(string $event): string
     {
         $url = add_query_arg('wc-api', 'WC_Gateway_Coinpayments', home_url('/'));
         $url = add_query_arg('clientId', $this->client_id, $url);
-        $url = add_query_arg('event', $event, $url);
 
-        return $url;
+        return  add_query_arg('event', $event, $url);
     }
 
     /**
      * @param $method
      * @param $api_action
-     * @param $client_id
      * @param null $params
-     * @param null $client_secret
      * @return bool|mixed
      * @throws Exception
      */
-    protected function send_request($method, $api_action, $client_id, $params = null, $client_secret = null)
+    protected function send_request($method, $api_action, $params = null)
     {
-
         $response = false;
 
         $api_url = $this->get_api_url($api_action);
         $date = new \Datetime();
+        $timestamp = $date->format('Y-m-d\TH:i:s');
         try {
 
             $curl = curl_init();
@@ -264,17 +236,14 @@ class WC_Gateway_Coinpayments_API_Handler
                 'Content-Type: application/json',
             );
 
-            if ($client_secret) {
-                $signature = $this->create_signature($method, $api_url, $client_id, $date, $client_secret, $params);
-                $headers[] = 'X-CoinPayments-Client: ' . $client_id;
-                $headers[] = 'X-CoinPayments-Timestamp: ' . $date->format('c');
-                $headers[] = 'X-CoinPayments-Signature: ' . $signature;
 
-            }
-
+            $content = !empty($params) ? json_encode($params) : '';
+            $signature = $this->create_signature($method, $api_url, $timestamp, $content);
+            $headers[] = 'X-CoinPayments-Client: ' . $this->client_id;
+            $headers[] = 'X-CoinPayments-Timestamp: ' . $timestamp;
+            $headers[] = 'X-CoinPayments-Signature: ' . $signature;
             $options[CURLOPT_HTTPHEADER] = $headers;
             $options[CURLOPT_HEADER] = true;
-
             if ($method == 'POST') {
                 $options[CURLOPT_POST] = true;
                 $options[CURLOPT_POSTFIELDS] = json_encode($params);
@@ -366,33 +335,18 @@ class WC_Gateway_Coinpayments_API_Handler
     /**
      * @param $method
      * @param $api_url
-     * @param $client_id
      * @param $date
-     * @param $client_secret
      * @param $params
      * @return string
      */
-    protected function create_signature($method, $api_url, $client_id, $date, $client_secret, $params)
+    protected function create_signature($method, $api_url, $date, $params): string
     {
-
+        $signature_data = [chr(239), chr(187), chr(191), $method, $api_url, $this->client_id, $date];
         if (!empty($params)) {
-            $params = json_encode($params);
+            $signature_data[] = $params;
         }
 
-        $signature_data = array(
-            chr(239),
-            chr(187),
-            chr(191),
-            $method,
-            $api_url,
-            $client_id,
-            $date->format('c'),
-            $params
-        );
-
-        $signature_string = implode('', $signature_data);
-
-        return $this->encode_signature_string($signature_string, $client_secret);
+        return $this->encode_signature_string(implode('', $signature_data), $this->client_secret);
     }
 
 }
