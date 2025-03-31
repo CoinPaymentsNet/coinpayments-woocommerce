@@ -1,3 +1,5 @@
+> NOTICE: Migrated to [CoinPaymentsNet/plugin-woocommerce](https://github.com/CoinPaymentsNet/plugin-woocommerce).
+
 === CoinPayments.net Payment Gateway for WooCommerce ===
 Contributors: CoinPayments, woothemes, mikejolley, jameskoster, CoenJacobs
 Donate link: https://gocps.net/3ncyzcq3sy0ww1rxghleip1aky/
